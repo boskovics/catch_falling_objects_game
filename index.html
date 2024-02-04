@@ -1,0 +1,405 @@
+<html>
+
+<head>
+</head>
+
+<body>
+    </canvas>
+        <div id="score" style="position: fixed; top: 10px; left: 10px; font-size: 44px; color: rgb(0, 0, 0);">0</div>
+    <script>
+
+        let windowW = 500;
+        let windowH = 800;
+        let fps = 60;
+
+        function Entity() {
+            Entity.prototype._count++;
+            this.id = Entity.prototype._count;
+            this.components = {};
+            this.addComponent = function addComponent(component) {
+                this.components[component.name] = component;
+                return this;
+            }
+            this.removeComponent = function removeComponent(component) {
+                delete this.components[component.name];
+                return this;
+            }
+        }
+
+        function Component(name, value) {
+            this.name = name;
+            this.value = value;
+        }
+
+        (function init() {
+            Entity.prototype._count = 0;
+        })()
+
+        let entities = [];
+
+        entities.push(new Entity()
+            .addComponent(new Component('x', -0.07))
+            .addComponent(new Component('y', -0.9))
+            .addComponent(new Component('type', 'user'))
+            .addComponent(new Component('score', 0))
+            // .addComponent(new Component('jump', 0))
+            // .addComponent(new Component('vely', 0))
+            // .addComponent(new Component('speedy', 0))
+        );
+
+        entities.push(new Entity()
+            .addComponent(new Component('x', 0))
+            .addComponent(new Component('y', 1.5))
+            .addComponent(new Component('type', 'enemy'))
+            .addComponent(new Component('passed', false))
+            .addComponent(new Component('steps', 0))
+        );
+
+
+        entities.push(new Entity()
+            .addComponent(new Component('x', 0.6))
+            .addComponent(new Component('y', 1.7))
+            .addComponent(new Component('type', 'enemy'))
+            .addComponent(new Component('passed', false))
+            .addComponent(new Component('steps', 0))
+        );
+
+        entities.push(new Entity()
+            .addComponent(new Component('x', 0.9))
+            .addComponent(new Component('y', 1.8))
+            .addComponent(new Component('type', 'enemy'))
+            .addComponent(new Component('passed', false))
+            .addComponent(new Component('steps', 0))
+        );
+
+        entities.push(new Entity()
+            .addComponent(new Component('x', -0.8))
+            .addComponent(new Component('y', 1.1))
+            .addComponent(new Component('type', 'enemy'))
+            .addComponent(new Component('passed', false))
+            .addComponent(new Component('steps', 0))
+        );
+
+        entities.push(new Entity()
+            .addComponent(new Component('x', -0.2))
+            .addComponent(new Component('y', 2))
+            .addComponent(new Component('type', 'enemy'))
+            .addComponent(new Component('passed', false))
+            .addComponent(new Component('steps', 0))
+        );
+
+        let systems = [];
+        let speed = 0.05;
+
+        // function userInputSystem(x){
+        //     return x
+        // }
+
+        //User input system
+        userInputSystem = (function inputSystem() {
+            //Inicializacija
+            let downEvents = []
+            let upEvents = []
+            function handleKeyDown(event) {
+                downEvents.push(event.keyCode)
+                downEvents = [...(new Set(downEvents))];
+            }
+
+            function handleKeyUp(event) {
+                upEvents.push(event.keyCode)
+                upEvents = [...(new Set(upEvents))];
+            }
+
+            window.addEventListener('keydown', handleKeyDown);
+            window.addEventListener('keyup', handleKeyUp);
+            //System funkcija
+            return (entities) => {
+                let newEntities = []
+                for (e of entities) {
+                    //Keyboard:
+                    if (e.components.type.value == 'user') {
+                        if (downEvents.includes(38)) {
+                            e.components.y.value += speed;
+                        }
+                        if (downEvents.includes(37)) {
+                            e.components.x.value -= speed;
+                        }
+                        if (downEvents.includes(39)) {
+                            e.components.x.value += speed;
+                        }
+                        else if (downEvents.includes(40)) {
+                            e.components.y.value -= speed;
+                        }
+                    }
+                    //Mouse:
+                    newEntities.push(e)
+                }
+                downEvents = downEvents.filter(value => !upEvents.includes(value));
+                upEvents = [];
+                return newEntities;
+            }
+        })()
+
+        //Graphics System
+        renderingSystem = (function graphicsSystem() {
+            //Graphics Init:
+            document.body.innerHTML += '<canvas id="window" width=' + windowW + ' height=' + windowH + ' ></canvas>';
+
+            let window = document.getElementById('window');
+            let gl = window.getContext('webgl');
+
+            var vertices = [
+                -0.07, 0.1, 0.0,
+                -0.07, -0.05, 0.0,
+                0.07, -0.05, 0.0,
+                0.07, 0.1, 0.0
+            ];
+
+            var playerVertices = [
+                -0.3, 0.1, 0.0,
+                -0.3, -0.1, 0.0,
+                0.3, -0.1, 0.0,
+                0.3, 0.1, 0.0
+            ];
+
+            var colors = [
+                1.0, 1.0, 0.0,
+                1.0, 1.0, 0.0,
+                1.0, 1.0, 0.0,
+                1.0, 1.0, 0.0];
+
+            indices = [3, 2, 1, 3, 1, 0];
+
+            // VertexBuffer
+            // let vertex_buffer = gl.createBuffer();
+            // gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+            // gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+
+
+            //Index Buffer
+            let Index_Buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Index_Buffer);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+
+            //color buffer
+            var color_buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+            //Shaderi:
+
+            //Vertex Shader:
+            let vertCode =
+                'precision mediump float;' +
+                'attribute vec3 coordinates;' +
+                'uniform vec3 translation;' +
+                'uniform vec3 vertexColor;' +
+                'varying vec3 vColor;' +
+                'void main(void) {' +
+                ' gl_Position = vec4(coordinates + translation, 1.0);' +
+                'vColor = vertexColor;' +
+                '}';
+
+            let vertShader = gl.createShader(gl.VERTEX_SHADER);
+            gl.shaderSource(vertShader, vertCode);
+            gl.compileShader(vertShader);
+
+            //Fragment Shader:
+            let fragCode =
+                'precision mediump float;' +
+                'varying vec3 vColor;' +
+                'void main(void) {' +
+                ' gl_FragColor = vec4(vColor, 1.);' +
+                '}';
+
+            let fragShader = gl.createShader(gl.FRAGMENT_SHADER);
+            gl.shaderSource(fragShader, fragCode);
+            gl.compileShader(fragShader);
+
+            //Compile shader program
+            let shaderProgram = gl.createProgram();
+
+            gl.attachShader(shaderProgram, vertShader);
+            gl.attachShader(shaderProgram, fragShader);
+            gl.linkProgram(shaderProgram);
+
+            // Bind vertex buffer object
+            // gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+            // gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Index_Buffer);
+            // var coord = gl.getAttribLocation(shaderProgram, "coordinates");
+            // gl.vertexAttribPointer(coord, 3, gl.FLOAT, false, 0, 0);
+            // gl.enableVertexAttribArray(coord);
+
+            // bind the color buffer
+            gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
+            // get the attribute location
+            var color = gl.getAttribLocation(shaderProgram, "vColor");
+            // point attribute to the volor buffer object
+            gl.vertexAttribPointer(color, 3, gl.FLOAT, false, 0, 0);
+            // enable the color attribute
+            gl.enableVertexAttribArray(color);
+
+            gl.clearColor(0.7, 0.9, 0.9, 1.0)
+            return (entities) => {
+                //Graphics Loop
+
+                //Clear
+                gl.enable(gl.DEPTH_TEST);
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+                // dodao
+                let vertex_buffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+
+                for (e of entities) {
+                    if (e.components.type.value == 'user') {
+                        currVertices = playerVertices
+                        playerColor = 0.5
+                    }else{
+                        currVertices = vertices
+                        playerColor = 1
+                    }
+
+                    gl.useProgram(shaderProgram);
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(currVertices), gl.STATIC_DRAW);
+                    gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, Index_Buffer);
+                    var coord = gl.getAttribLocation(shaderProgram, "coordinates");
+                    gl.vertexAttribPointer(coord, 3, gl.FLOAT, false, 0, 0);
+                    gl.enableVertexAttribArray(coord);
+                    gl.uniform3f(gl.getUniformLocation(shaderProgram, 'translation'), e.components.x.value, e.components.y.value, 0.0);
+                    gl.uniform3f(gl.getUniformLocation(shaderProgram, 'vertexColor'), 0, playerColor, 0);                        
+                    gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+                
+                }
+                return entities;
+            }
+        }())
+
+        scoreSystem = function (entities) {
+            var score = -1;
+            for (ent of entities) {
+                if (ent.components.type.value == 'enemy' && ent.components.passed.value) {
+                    score = 0;
+                    ent.components.passed.value = false;
+                }
+            }
+            for (e of entities) {
+
+                if (e.components.type.value == 'user') {
+                    // e.components.score.value += 1;
+                    if (score == 0) {
+                        e.components.score.value = 0;
+                        // console.log(e.components.score.value);
+                    }
+                    document.getElementById('score').innerText = e.components.score.value;
+                } else if (score == 0) {
+                    e.components.steps.value = 1;
+                }
+            }
+            return entities;
+        }
+
+        physicsSystem = function (entities) {
+            var passed = false;
+            for (let e of entities) {
+                // Igrac
+                if (e.components.type.value == 'user') {
+                    if (e.components.y.value < -0.9) {
+                        e.components.y.value = -0.9;
+                    }
+                    if (e.components.x.value < -0.7) {
+                        e.components.x.value = -0.7;
+                    }
+                    if (e.components.x.value > 0.7) {
+                        e.components.x.value = 0.7;
+                    }
+                }
+                // Neprijatelji
+                if (e.components.type.value == 'enemy') {
+                    e.components.steps.value += 1;
+                    
+
+                    // var factor = Math.floor(e.components.steps.value / 200) + 1;
+                    // e.components.y.value -= 0.01 * factor;
+                    // TODO
+                    // Linear interpolation function
+                    function lerp(start, end, t) {
+                        return start * (1 - t) + end * t;
+                    }
+                    const smoothingFactor = 0.1;
+                    const targetY = e.components.y.value - 0.01 * Math.floor(e.components.steps.value / 50 + 1);
+                    e.components.y.value = lerp(e.components.y.value, targetY, smoothingFactor);
+
+                    if (e.components.y.value < -1.1) {
+                        // e.components.x.value = Math.random() * 2 - 1.2;
+                        // e.components.y.value = 1;
+                        e.components.passed.value = true;
+                        passed = true;
+                        e.components.steps.value = 1;
+
+                    }
+                }
+
+            }
+
+            if (passed) {
+                for (e of entities) {
+                if (e.components.type.value == 'enemy') {
+                    e.components.x.value = Math.random() * 1.8 - 0.9;
+                    e.components.y.value = Math.random() + 1;
+                }
+                }
+
+            }
+            
+            return entities;
+        }
+
+        collisionSystem = function (entities) {
+            //let newEntities = [];
+
+            for (e of entities) {
+                if (e.components.type.value == 'user') {
+                    for (ent of entities) {
+                        //newEntities.push(ent);
+                        if (e != ent)
+                            {
+                                if (Math.abs(e.components.x.value - ent.components.x.value) < 0.33 &&
+                                    Math.abs(e.components.y.value - ent.components.y.value) < 0.2) 
+                                    {
+                                        ent.components.x.value = Math.random() * 1.8 - 0.9;
+                                        ent.components.y.value = Math.random() + 1;
+                                        e.components.score.value += 1;
+                                        
+                                // popuje ent i resetuje koordinate
+                                // console.log("Collision!");
+                                //newEntities.pop(ent);
+                                    }
+                            }
+                    }
+                }
+            }
+            return entities;
+        }
+
+        systems.push(userInputSystem)
+        systems.push(physicsSystem)
+        systems.push(collisionSystem)
+        systems.push(scoreSystem)
+        systems.push(renderingSystem)
+
+        function game(entities, systems) {
+            for (s of systems) {
+                entities = s(Object.freeze(entities))
+            }
+        }
+
+        //Set interval kao delta time
+        setInterval(() => {
+            game(entities, systems);
+        }, 1000 / fps);
+
+    </script>
+</body>
+
+</html>
